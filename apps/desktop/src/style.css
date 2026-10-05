@@ -1932,3 +1932,21 @@ label.button {
 .transfer-card .button-group {
   flex-wrap: wrap;
 }
+
+.open-transfer {
+  margin: 16px 0;
+}
+.open-transfer summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.open-transfer form {
+  display: grid;
+  gap: 12px;
+}
+.transfer-app-help {
+  background: #edf3ee;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}

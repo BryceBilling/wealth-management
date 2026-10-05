@@ -85,6 +85,12 @@ MEMBER2_PASSWORD='a different member two password' npm run server
 
 Server migrations and initial member provisioning run at startup. Existing hashes are never silently replaced by changed environment variables.
 
+## Biometric unlock and installed-app links
+
+In the installed app or supported browser, unlock with your passphrase once, then open Settings → Biometric unlock. Confirm the passphrase and follow the device passkey prompts. Future unlocks can use fingerprint, face recognition, or the device PIN chosen by the operating system. This unlocks the local vault; it does not replace Cloudflare Access sign-in. Keep the vault passphrase for recovery, other devices, and transfers. Unsupported PRF authenticators fail safely without saving an unlock secret. Disable this browser’s enrollment in Settings; remove the passkey separately in the device password manager if desired. Native Mac keychain integration is not included.
+
+Transfer URLs remain HTTPS links within the installed app’s scope. The manifest requests existing-window launch handling, and supported browsers deliver incoming transfer URLs without silently discarding an open form. Android’s share menu can offer Tandem after the installed manifest updates; the POST share target is processed by the service worker and keeps the token in the URL fragment. Automatic app opening is controlled by the OS/browser and is not guaranteed in messaging apps or on iOS. The welcome screen and Settings offer **Open a transfer link**: copy the link, open the installed app from its icon, and paste it. Never uninstall or clear app storage just to refresh link handling without first backing up the vault.
+
 ## Backups
 
 Settings → **Transfer by private link** creates an encrypted snapshot link lasting 1 or 24 hours. On the website, your approved Cloudflare sign-in is sufficient; no synchronization setup is needed. The native Mac app still uses its configured private relay. Copy the link or share it through WhatsApp; send the vault passphrase separately. Recipients sign in through Cloudflare Access, enter the passphrase, and import directly. A new device selects its household member; an existing device unlocks first and merges only the same household. After pairing, connect synchronization on the recipient for future updates.
@@ -132,7 +138,7 @@ Export a backup before updating. Keep the app origin / identifier unchanged to r
 
 ## Scope and platform limits
 
-This is a household ledger, not bank-connected software or a trading platform. Short PIN unlock and native biometric/keychain unlock are deliberately not substitutes for the vault passphrase in this build. No signed Windows/Linux/iOS/Android distributables have been tested. The included Docker/TLS deployment needs a private host, DNS, certificates and credentials; nothing is publicly deployed. Large attachment libraries increase encrypted snapshot size; attachments are limited to 4 MB each. Keep regular independent backups.
+This is a household ledger, not bank-connected software or a trading platform. Device passkey unlock requires WebAuthn PRF support; native keychain integration and short app-PIN unlock are not included. No signed Windows/Linux/iOS/Android distributables have been tested. The included Docker/TLS deployment needs a private host, DNS, certificates and credentials; nothing is publicly deployed. Large attachment libraries increase encrypted snapshot size; attachments are limited to 4 MB each. Keep regular independent backups.
 
 ## Verified build
 

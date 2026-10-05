@@ -40,6 +40,23 @@ self.addEventListener('activate', event => event.waitUntil((async () => {
 })()));
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+  if (event.request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/share-transfer') {
+    event.respondWith((async () => {
+      const form = await event.request.formData();
+      const text = ['url', 'text', 'title'].map(key => String(form.get(key) || '')).join(' ');
+      for (const candidate of text.match(/https?:\\/\\/[^\\s<>]+/g) || []) {
+        try {
+          const target = new URL(candidate);
+          const token = new URLSearchParams(target.hash.slice(1)).get('transfer');
+          if (target.origin === self.location.origin && target.pathname === '/' && token && /^[A-Za-z0-9_-]{43}$/.test(token))
+            return Response.redirect(self.location.origin + '/#transfer=' + token, 303);
+        } catch {}
+      }
+      return Response.redirect(self.location.origin + '/#invalid-transfer', 303);
+    })());
+    return;
+  }
+
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || !FILES.includes(url.pathname)) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);

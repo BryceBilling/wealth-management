@@ -1,3 +1,4 @@
+import { TransferAppHelp } from "./OpenTransfer";
 import { useEffect, useState } from "react";
 import { isTauri, invoke } from "@tauri-apps/api/core";
 import type { Vault } from "../../../packages/database/vault";
@@ -235,6 +236,7 @@ export function TransferImport({
   return (
     <main className="transfer-screen">
       <section className="card">
+        <TransferAppHelp />
         <img src="/logo.svg" alt="Tandem" width="64" height="64" />
         <h1>{saved ? "Your household is saved" : "Import your household"}</h1>
         <p>

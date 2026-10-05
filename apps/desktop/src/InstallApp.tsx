@@ -94,7 +94,9 @@ export function InstallApp() {
           </p>
           <p>
             <b>Android:</b> open in Chrome, tap its menu, then Install app or
-            Add to Home screen.
+            Add to Home screen. To open links in Tandem, check Android Settings
+            → Apps → Tandem → Open by default → Open supported links, if
+            offered.
           </p>
           <p>
             <b>Computer:</b> in Chrome or Edge, use the install icon in the

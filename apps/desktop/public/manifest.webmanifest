@@ -21,5 +21,18 @@
   ],
   "id": "/",
   "scope": "/",
-  "description": "Private household finances for two people. Works offline."
+  "description": "Private household finances for two people. Works offline.",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "share_target": {
+    "action": "/share-transfer",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

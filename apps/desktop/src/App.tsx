@@ -1,3 +1,9 @@
+import { BiometricSettings, biometricError } from "./BiometricSettings";
+import {
+  biometricEnabled,
+  unlockBiometric,
+} from "../../../packages/database/biometric";
+import { OpenTransfer, parseTransferLink } from "./OpenTransfer";
 import { InstallApp } from "./InstallApp";
 import { ShareApp } from "./ShareApp";
 import { TransferLinks, TransferImport, transferToken } from "./Transfer";
@@ -98,6 +104,28 @@ export function App() {
     [vault, setVault] = useState<Vault | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const queue = (
+      window as Window & {
+        launchQueue?: {
+          setConsumer(fn: (params: { targetURL?: string }) => void): void;
+        };
+      }
+    ).launchQueue;
+    queue?.setConsumer((params) => {
+      const token = params.targetURL && parseTransferLink(params.targetURL);
+      if (!token || token === transferToken()) return;
+      if (
+        vault &&
+        !confirm(
+          "Open the incoming transfer? Save any open form before continuing.",
+        )
+      )
+        return;
+      location.hash = "transfer=" + token;
+    });
+    return () => queue?.setConsumer(() => {});
+  }, [vault]);
   useEffect(() => {
     Promise.all([initSQL("/sql-wasm.wasm"), storage.read()])
       .then(([, e]) => {
@@ -232,6 +260,7 @@ export function App() {
           </p>
         )}
         <InstallApp />
+        <OpenTransfer />
         <span className="pill">
           <span className="dot" /> LOCAL & ENCRYPTED
         </span>
@@ -245,6 +274,22 @@ export function App() {
           <div role="alert" className="error">
             {error}
           </div>
+        )}
+        {exists && biometricEnabled() && (
+          <button
+            className="primary wide"
+            disabled={!ready || busy}
+            onClick={() => {
+              setBusy(true);
+              setError("");
+              void unlockBiometric(storage)
+                .then(setVault)
+                .catch((e) => setError(biometricError(e)))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Unlock with biometrics
+          </button>
         )}
         <form onSubmit={enter}>
           {!exists && (
@@ -3282,8 +3327,10 @@ function SettingsView({
   return (
     <div className="settings-grid">
       <TransferLinks vault={vault} />
+      <BiometricSettings vault={vault} />
       <section className="card">
         <h2>Tandem on your devices</h2>
+        <OpenTransfer />
         <p>
           Open your private web address on a phone or computer, then install
           Tandem for quick access.
