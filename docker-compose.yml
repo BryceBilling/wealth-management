@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tandem
+      POSTGRES_USER: tandem
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a unique database password}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U tandem']
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/Dockerfile
+    environment:
+      DATABASE_URL: postgres://tandem:${POSTGRES_PASSWORD}@postgres:5432/tandem
+      MEMBER1_PASSWORD: ${MEMBER1_PASSWORD:?Set first member password}
+      MEMBER2_PASSWORD: ${MEMBER2_PASSWORD:?Set second member password}
+      APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:1420}
+    ports: ['127.0.0.1:8787:8787']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  tls:
+    image: caddy:2-alpine
+    profiles: [tls]
+    ports: ['443:443']
+    volumes:
+      - ./infrastructure/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on: [api]
+    restart: unless-stopped
+  backup:
+    build:
+      context: infrastructure/backups
+    profiles: [backup]
+    environment:
+      PGHOST: postgres
+      PGUSER: tandem
+      PGDATABASE: tandem
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      AGE_RECIPIENT: ${AGE_RECIPIENT:-}
+    volumes: ['backups:/backups']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  database:
+  caddy:
+  backups:

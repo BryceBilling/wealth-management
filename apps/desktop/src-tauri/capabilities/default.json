@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Native backup and receipt exports may write only to paths explicitly chosen in the Save dialog.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-save", "fs:allow-write-file"]
+}

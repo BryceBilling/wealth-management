@@ -1,0 +1,11 @@
+# Security
+
+SQLite snapshots, exported backups and sync event payloads use AES-256-GCM with fresh 96-bit nonces. A household passphrase derives a non-exportable key using PBKDF2-SHA256 (600,000 iterations), random salt, and authenticated version metadata. Use a long unique passphrase; short PINs do not resist offline attack. Keys remain only in memory and locking reloads the app. Never persist plaintext financial data or credentials in localStorage. Browser storage contains encrypted envelopes only, except a random device UUID.
+
+The private server uses Argon2id password hashes, random device bearer tokens stored only as SHA-256 hashes server-side, login rate limits, runtime input validation, two provisioned accounts, and device revocation. Tokens are encrypted in the local vault. Require TLS via the included reverse proxy and firewall/private VPN; server binds loopback by default. No public registration. A shared vault means both members can access household records; individual denotes ownership, not secrecy from the partner.
+
+An unlocked device or compromised OS can read memory. Browser extensions and XSS remain risks. No biometric bypass is claimed. Forgotten vault passphrases cannot be recovered. Keep encrypted backups outside the device. Clearing browser storage removes the local copy. Native signed installers and OS keychain integration are not prerequisites for local operation and must not be represented as tested until verified.
+
+Optional market prices connect directly to Twelve Data over HTTPS and disclose the queried symbols/exchanges and API key to that provider. The key is encrypted in local vault metadata, excluded from sync events, and included in encrypted full-vault backups. No units, values, member names or household records are sent in quote requests. Provider coverage, quotas and delays apply. Manual investments require no provider connection.
+
+Share Tandem shares an app URL or the Mac application bundle only. The vault remains in browser/WebView storage outside that bundle. Pairing uses a separate encrypted backup and the shared vault passphrase. A private URL still requires network access and a trusted HTTPS certificate on each phone. Browser storage can be evicted or cleared; keep independent encrypted backups.

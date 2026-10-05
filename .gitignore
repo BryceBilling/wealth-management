@@ -1,0 +1,15 @@
+node_modules/
+dist/
+target/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.pem
+*.key
+*.db
+*.tandem
+playwright-report/
+test-results/
+apps/desktop/src-tauri/gen/
+release/
