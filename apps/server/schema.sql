@@ -4,3 +4,8 @@ CREATE TABLE IF NOT EXISTS events(seq bigserial PRIMARY KEY, id uuid UNIQUE NOT 
 CREATE TABLE IF NOT EXISTS backups(id uuid PRIMARY KEY, device_id uuid REFERENCES devices(id), envelope jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS transfers(id uuid PRIMARY KEY, device_id uuid NOT NULL REFERENCES devices(id), token_hash text UNIQUE NOT NULL, envelope jsonb, created_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL, receipt_hash text, claim_until timestamptz, completed_at timestamptz, revoked_at timestamptz);
 CREATE INDEX IF NOT EXISTS transfers_expiry ON transfers(expires_at);
+
+ALTER TABLE transfers ALTER COLUMN device_id DROP NOT NULL;
+ALTER TABLE transfers ADD COLUMN IF NOT EXISTS owner_key text;
+UPDATE transfers SET owner_key='device:' || device_id::text WHERE owner_key IS NULL;
+CREATE INDEX IF NOT EXISTS transfers_owner ON transfers(owner_key);

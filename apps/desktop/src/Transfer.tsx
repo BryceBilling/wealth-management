@@ -10,6 +10,10 @@ export function transferToken() {
 }
 export function TransferLinks({ vault }: { vault: Vault }) {
   const config = vault.repo.meta<SyncConfig | null>("sync", null);
+  const web = !isTauri();
+  const url = web ? location.origin : config?.url;
+  const endpoint = web ? "/web-transfers" : "/transfers";
+  const authToken = web ? undefined : config?.token;
   const [hours, setHours] = useState(24);
   const [link, setLink] = useState("");
   const [expires, setExpires] = useState("");
@@ -18,15 +22,12 @@ export function TransferLinks({ vault }: { vault: Vault }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   async function load() {
-    if (config)
-      setLinks(
-        (await request(config.url, "/transfers", undefined, config.token))
-          .transfers,
-      );
+    if (url)
+      setLinks((await request(url, endpoint, undefined, authToken)).transfers);
   }
   useEffect(() => {
     void load().catch((e) => setStatus(e.message));
-  }, [config?.url, config?.token]);
+  }, [url, authToken, endpoint]);
   async function run(fn: () => Promise<void>) {
     setBusy(true);
     setStatus("");
@@ -70,10 +71,10 @@ export function TransferLinks({ vault }: { vault: Vault }) {
         Send an encrypted snapshot to another device without sending a file.
         Only approved users can open it, and they need your vault passphrase.
       </p>
-      {!config ? (
+      {!url ? (
         <p>
-          Connect this device under Private synchronization below to create a
-          transfer link.
+          Connect the Mac app under Private synchronization below, or open your
+          private Tandem website to create a link using your existing sign-in.
         </p>
       ) : (
         <>
@@ -92,7 +93,7 @@ export function TransferLinks({ vault }: { vault: Vault }) {
             disabled={busy}
             onClick={() =>
               void run(async () => {
-                const target = new URL(config.url);
+                const target = new URL(url);
                 if (
                   target.protocol !== "https:" &&
                   !["localhost", "127.0.0.1"].includes(target.hostname)
@@ -101,10 +102,10 @@ export function TransferLinks({ vault }: { vault: Vault }) {
                     "Use your private HTTPS web address for transfers.",
                   );
                 const result = await request(
-                  config.url,
-                  "/transfers",
+                  url,
+                  endpoint,
                   { envelope: await vault.backup(), hours },
-                  config.token,
+                  authToken,
                 );
                 target.pathname = "/";
                 target.search = "";
@@ -173,10 +174,10 @@ export function TransferLinks({ vault }: { vault: Vault }) {
                   onClick={() =>
                     void run(async () => {
                       await request(
-                        config.url,
-                        "/transfers/revoke",
+                        url,
+                        endpoint + "/revoke",
                         { id: item.id },
-                        config.token,
+                        authToken,
                       );
                       if (item.id === createdId) setLink("");
                       await load();
@@ -194,8 +195,7 @@ export function TransferLinks({ vault }: { vault: Vault }) {
       {status && <p role="status">{status}</p>}
       <small>
         Share the passphrase separately. Revoking or expiring a link cannot
-        erase a copy already imported. Links created on this device are listed
-        here.
+        erase a copy already imported. Your links are listed here.
       </small>
     </section>
   );

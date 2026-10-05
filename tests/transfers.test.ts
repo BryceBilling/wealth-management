@@ -1,7 +1,13 @@
-import { beforeAll, afterAll, it, expect } from "vitest";
+import { beforeAll, afterAll, it, expect, vi } from "vitest";
 import { Pool } from "pg";
 import { readFile } from "node:fs/promises";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  generateKeyPairSync,
+  sign,
+} from "node:crypto";
 import { createServer } from "../apps/server/app";
 const integration = process.env.TEST_DATABASE_URL ? it : it.skip;
 const secret = () => randomBytes(32).toString("base64url");
@@ -184,5 +190,129 @@ it("requires approved Cloudflare identity for recipient endpoints even with a li
       ).toBe(401);
   } finally {
     await gated.close();
+  }
+});
+
+integration(
+  "approved website users create links without sync and can only manage their own links",
+  async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            keys: [{ ...publicKey.export({ format: "jwk" }), kid: "test" }],
+          }),
+        ),
+      );
+    const gated = await createServer(pool, {
+      access: {
+        teamDomain: "test.cloudflareaccess.com",
+        audience: "test",
+        allowedEmails: ["one@example.com", "two@example.com"],
+      },
+    });
+    function headers(email: string) {
+      const payload =
+        Buffer.from(JSON.stringify({ alg: "RS256", kid: "test" })).toString(
+          "base64url",
+        ) +
+        "." +
+        Buffer.from(
+          JSON.stringify({
+            iss: "https://test.cloudflareaccess.com",
+            aud: ["test"],
+            email,
+            exp: Math.floor(Date.now() / 1000) + 60,
+          }),
+        ).toString("base64url");
+      return {
+        "cf-access-jwt-assertion":
+          payload +
+          "." +
+          sign("RSA-SHA256", Buffer.from(payload), privateKey).toString(
+            "base64url",
+          ),
+      };
+    }
+    try {
+      const anonymous = await gated.inject({
+        method: "POST",
+        url: "/web-transfers",
+        headers: { "cf-access-authenticated-user-email": "one@example.com" },
+        payload: { hours: 1, envelope },
+      });
+      expect(anonymous.statusCode).toBe(401);
+      const created = await gated.inject({
+        method: "POST",
+        url: "/web-transfers",
+        headers: headers("one@example.com"),
+        payload: { hours: 1, envelope },
+      });
+      expect(created.statusCode).toBe(200);
+      const id = created.json().id;
+      expect(
+        (
+          await gated.inject({
+            url: "/web-transfers",
+            headers: headers("one@example.com"),
+          })
+        )
+          .json()
+          .transfers.map((x: any) => x.id),
+      ).toContain(id);
+      expect(
+        (
+          await gated.inject({
+            url: "/web-transfers",
+            headers: headers("two@example.com"),
+          })
+        ).json().transfers,
+      ).toEqual([]);
+      expect(
+        (
+          await gated.inject({
+            method: "POST",
+            url: "/web-transfers/revoke",
+            headers: headers("two@example.com"),
+            payload: { id },
+          })
+        ).statusCode,
+      ).toBe(404);
+      expect(
+        (
+          await gated.inject({
+            method: "POST",
+            url: "/web-transfers/revoke",
+            headers: headers("one@example.com"),
+            payload: { id },
+          })
+        ).statusCode,
+      ).toBe(200);
+      expect(
+        (
+          await pool.query(
+            "SELECT envelope,device_id FROM transfers WHERE id=$1",
+            [id],
+          )
+        ).rows[0],
+      ).toEqual({ envelope: null, device_id: null });
+    } finally {
+      await gated.close();
+      fetchMock.mockRestore();
+    }
+  },
+);
+it("website transfer management fails closed without verified Access identity", async () => {
+  const local = await createServer({} as Pool);
+  try {
+    expect((await local.inject({ url: "/web-transfers" })).statusCode).toBe(
+      401,
+    );
+  } finally {
+    await local.close();
   }
 });

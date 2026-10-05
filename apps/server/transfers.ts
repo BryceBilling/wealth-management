@@ -22,65 +22,86 @@ export function transferRoutes(
   timer.unref();
   app.addHook("onClose", async () => clearInterval(timer));
   app.addHook("onSend", async (req, reply) => {
-    if (req.url.startsWith("/transfers"))
+    if (
+      req.url.startsWith("/transfers") ||
+      req.url.startsWith("/web-transfers")
+    )
       reply
         .header("Cache-Control", "no-store")
         .header("Referrer-Policy", "no-referrer");
   });
-  app.post(
-    "/transfers",
-    {
-      preHandler: auth,
-      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
-    },
-    async (req: any) => {
-      const input = z
-        .object({ envelope, hours: z.union([z.literal(1), z.literal(24)]) })
-        .strict()
-        .parse(req.body);
+  function management(
+    prefix: string,
+    authenticate: preHandlerHookHandler,
+    owner: (req: any) => string,
+  ) {
+    app.post(
+      prefix,
+      {
+        preHandler: authenticate,
+        config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
+      },
+      async (req: any) => {
+        const input = z
+          .object({ envelope, hours: z.union([z.literal(1), z.literal(24)]) })
+          .strict()
+          .parse(req.body);
+        await cleanup();
+        const token = randomBytes(32).toString("base64url"),
+          id = randomUUID();
+        const result = await pool.query(
+          "INSERT INTO transfers(id,device_id,token_hash,envelope,expires_at,owner_key) VALUES($1,$2,$3,$4,now()+$5*interval '1 hour',$6) RETURNING expires_at",
+          [
+            id,
+            req.device?.id ?? null,
+            hash(token),
+            JSON.stringify(input.envelope),
+            input.hours,
+            owner(req),
+          ],
+        );
+        return { id, token, expiresAt: result.rows[0].expires_at };
+      },
+    );
+    app.get(prefix, { preHandler: authenticate }, async (req: any) => {
       await cleanup();
-      const token = randomBytes(32).toString("base64url"),
-        id = randomUUID();
-      const result = await pool.query(
-        "INSERT INTO transfers(id,device_id,token_hash,envelope,expires_at) VALUES($1,$2,$3,$4,now()+$5*interval '1 hour') RETURNING expires_at",
-        [
-          id,
-          req.device.id,
-          hash(token),
-          JSON.stringify(input.envelope),
-          input.hours,
-        ],
-      );
-      return { id, token, expiresAt: result.rows[0].expires_at };
-    },
-  );
-  app.get("/transfers", { preHandler: auth }, async (req: any) => {
-    await cleanup();
-    return {
-      transfers: (
-        await pool.query(
-          "SELECT id,created_at,expires_at,completed_at,revoked_at FROM transfers WHERE device_id=$1 ORDER BY created_at DESC",
-          [req.device.id],
-        )
-      ).rows,
-    };
-  });
-  app.post(
-    "/transfers/revoke",
-    { preHandler: auth },
+      return {
+        transfers: (
+          await pool.query(
+            "SELECT id,created_at,expires_at,completed_at,revoked_at FROM transfers WHERE owner_key=$1 ORDER BY created_at DESC",
+            [owner(req)],
+          )
+        ).rows,
+      };
+    });
+    app.post(
+      prefix + "/revoke",
+      { preHandler: authenticate },
+      async (req: any, reply) => {
+        const { id } = z
+          .object({ id: z.string().uuid() })
+          .strict()
+          .parse(req.body);
+        const result = await pool.query(
+          "UPDATE transfers SET revoked_at=now(),envelope=NULL WHERE id=$1 AND owner_key=$2 RETURNING id",
+          [id, owner(req)],
+        );
+        return result.rows.length
+          ? { ok: true }
+          : reply.code(404).send({ error: "Transfer not found" });
+      },
+    );
+  }
+  management("/transfers", auth, (req) => "device:" + req.device.id);
+  management(
+    "/web-transfers",
     async (req: any, reply) => {
-      const { id } = z
-        .object({ id: z.string().uuid() })
-        .strict()
-        .parse(req.body);
-      const result = await pool.query(
-        "UPDATE transfers SET revoked_at=now(),envelope=NULL WHERE id=$1 AND device_id=$2 RETURNING id",
-        [id, req.device.id],
-      );
-      return result.rows.length
-        ? { ok: true }
-        : reply.code(404).send({ error: "Transfer not found" });
+      if (!req.accessEmail)
+        return reply.code(401).send({
+          error: "Sign in to your private Tandem website, then try again.",
+        });
     },
+    (req) => "email:" + req.accessEmail,
   );
   // These recipient endpoints also require the Cloudflare Access gate in app.ts.
   // A lease prevents simultaneous imports; retries on the same browser reuse a receipt.

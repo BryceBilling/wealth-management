@@ -54,6 +54,14 @@ export async function createServer(
         ))
       )
         return reply.code(401).send({ error: "Access denied" });
+      // The signature and email allowlist have been verified above. Never trust
+      // the separate identity headers supplied by a client.
+      (req as any).accessEmail = JSON.parse(
+        Buffer.from(
+          (assertion as string).split(".")[1],
+          "base64url",
+        ).toString(),
+      ).email.toLowerCase();
     });
   }
   app.setErrorHandler((error, _req, reply) => {

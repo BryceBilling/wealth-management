@@ -14,10 +14,7 @@ test("create an encrypted link, retry a wrong passphrase on a phone, import once
     created_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + 3600000).toISOString(),
   };
-  await page.route("**/auth/login", (route) =>
-    route.fulfill({ json: { token: "test-device-token" } }),
-  );
-  await page.route("**/transfers", (route) => {
+  await page.route("**/web-transfers", (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       envelope = body.envelope;
@@ -41,7 +38,7 @@ test("create an encrypted link, retry a wrong passphrase on a phone, import once
       },
     });
   });
-  await page.route("**/transfers/revoke", (route) => {
+  await page.route("**/web-transfers/revoke", (route) => {
     revoked = true;
     return route.fulfill({ json: { ok: true } });
   });
@@ -55,11 +52,9 @@ test("create an encrypted link, retry a wrong passphrase on a phone, import once
     .locator("nav")
     .getByRole("button", { name: "Settings", exact: true })
     .click();
-  await page.getByLabel("Private relay URL").fill("http://127.0.0.1:1420");
-  await page.getByLabel("Server password").fill("test member password");
-  await page
-    .getByRole("button", { name: "Connect device", exact: true })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "Create transfer link", exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Link expires after").selectOption("1");
   await page
     .getByRole("button", { name: "Create transfer link", exact: true })
