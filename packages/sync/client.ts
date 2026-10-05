@@ -24,6 +24,11 @@ export async function request(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(20000),
   });
+  if (
+    res.redirected ||
+    !res.headers.get("content-type")?.includes("application/json")
+  )
+    throw Error("Sign in to your private Tandem website, then try again.");
   const data = await res.json();
   if (!res.ok) throw Error(data.error ?? "Synchronization failed");
   return data;

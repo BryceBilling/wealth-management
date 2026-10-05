@@ -7,6 +7,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Pool } from "pg";
 import { createAccessVerifier } from "./access";
+import { transferRoutes } from "./transfers";
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
 const envelope = z
   .object({
@@ -41,7 +42,9 @@ export async function createServer(
       // proxy gate protects the installable app shell from direct-origin use.
       if (
         path === "/health" ||
-        /^\/(auth|sync|devices|backups)(\/|$)/.test(path)
+        /^\/(auth|sync|devices|backups)(\/|$)/.test(path) ||
+        path === "/transfers" ||
+        path === "/transfers/revoke"
       )
         return;
       const assertion = req.headers["cf-access-jwt-assertion"];
@@ -207,6 +210,7 @@ export async function createServer(
       r.rows[0]?.envelope ?? reply.code(404).send({ error: "Backup not found" })
     );
   });
+  transferRoutes(app, pool, auth, envelope);
   if (options.staticDir) {
     await app.register(staticFiles, {
       root: options.staticDir,

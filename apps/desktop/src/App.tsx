@@ -1,5 +1,6 @@
 import { InstallApp } from "./InstallApp";
 import { ShareApp } from "./ShareApp";
+import { TransferLinks, TransferImport, transferToken } from "./Transfer";
 import { InvestmentForm } from "./InvestmentForm";
 import { interestProjection } from "../../../packages/market";
 import { updateMarketValues } from "../../../packages/market/update";
@@ -86,6 +87,12 @@ const nav = [
   ["Settings", Settings],
 ] as const;
 export function App() {
+  const [transfer, setTransfer] = useState(transferToken);
+  useEffect(() => {
+    const changed = () => setTransfer(transferToken());
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
   const [ready, setReady] = useState(false),
     [exists, setExists] = useState(false),
     [vault, setVault] = useState<Vault | null>(null),
@@ -151,6 +158,42 @@ export function App() {
       setBusy(false);
     }
   }
+  if (ready && transfer && (!exists || vault))
+    return (
+      <TransferImport
+        key={transfer}
+        token={transfer}
+        existing={!!vault}
+        onImport={async (envelope, pass, member) => {
+          if (vault) {
+            await vault.restore(envelope, pass);
+            return;
+          }
+          // Prepare and validate in memory before writing the new device's vault.
+          const v = await Vault.create(pass, {
+            read: async () => null,
+            write: async () => {},
+          });
+          try {
+            await v.restore(envelope, pass);
+            await v.mutate((r) =>
+              r.setMeta("member", r.rows("household")[0].users[member].id),
+            );
+            await storage.write(await v.backup());
+            v.storage = storage;
+            setVault(v);
+            navigator.storage?.persist?.();
+          } catch (e) {
+            v.repo.close();
+            throw e;
+          }
+        }}
+        onClose={() => {
+          history.replaceState(null, "", location.pathname + location.search);
+          setTransfer(null);
+        }}
+      />
+    );
   if (vault) return <Workspace vault={vault} />;
   return (
     <div className="welcome">
@@ -183,6 +226,11 @@ export function App() {
         </small>
       </div>
       <div className="welcome-form">
+        {transfer && exists && (
+          <p role="status">
+            Unlock this device’s vault to import your transfer link.
+          </p>
+        )}
         <InstallApp />
         <span className="pill">
           <span className="dot" /> LOCAL & ENCRYPTED
@@ -2687,6 +2735,7 @@ function RecordForm({
     interval: 1,
     category: "All",
     interestType: "monthly",
+    paymentDay: 1,
     reminder: 1,
     ...modal.row,
     amountOwed:
@@ -3232,6 +3281,7 @@ function SettingsView({
   }
   return (
     <div className="settings-grid">
+      <TransferLinks vault={vault} />
       <section className="card">
         <h2>Tandem on your devices</h2>
         <p>

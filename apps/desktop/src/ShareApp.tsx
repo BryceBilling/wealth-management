@@ -182,8 +182,8 @@ export function ShareApp({
           <b>Your money stays private.</b>
           <p>
             This shares only the app. To connect household data afterward,
-            export an encrypted backup in Settings and restore it on the other
-            device. Share the passphrase separately.
+            create a transfer link under Settings → Transfer by private link.
+            Share the vault passphrase separately.
           </p>
         </div>
       </section>

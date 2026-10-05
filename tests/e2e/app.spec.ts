@@ -131,7 +131,8 @@ test("real household workflows persist offline, restore, and fit mobile", async 
   const debtForm = page.getByRole("dialog");
   await expect(
     debtForm.locator("form input, form select, form textarea"),
-  ).toHaveCount(4);
+  ).toHaveCount(5);
+  await expect(debtForm.getByLabel("Monthly payment date")).toHaveValue("1");
   await expect(debtForm.getByLabel("Amount owed", { exact: true })).toHaveValue(
     "3660.00",
   );

@@ -1897,3 +1897,38 @@ label.button {
     min-width: 40px;
   }
 }
+
+.transfer-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg, #f6f7f4);
+}
+.transfer-screen > .card {
+  width: min(100%, 560px);
+}
+.transfer-screen h1 {
+  font-size: 28px;
+}
+.transfer-screen form,
+.transfer-result {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+}
+.transfer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #dce2dc;
+}
+.transfer-card > button {
+  margin: 10px 8px 10px 0;
+}
+.transfer-card .button-group {
+  flex-wrap: wrap;
+}
