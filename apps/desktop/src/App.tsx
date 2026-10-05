@@ -3233,6 +3233,14 @@ function SettingsView({
   return (
     <div className="settings-grid">
       <section className="card">
+        <h2>Tandem on your devices</h2>
+        <p>
+          Open your private web address on a phone or computer, then install
+          Tandem for quick access.
+        </p>
+        <InstallApp />
+      </section>
+      <section className="card">
         <h2>Your household</h2>
         <form
           onSubmit={(e) => {

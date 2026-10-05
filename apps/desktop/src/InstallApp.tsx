@@ -8,6 +8,7 @@ type Prompt = Event & {
 export function InstallApp() {
   const [prompt, setPrompt] = useState<Prompt | null>(null),
     [help, setHelp] = useState(false),
+    [update, setUpdate] = useState<ServiceWorker | null>(null),
     [installed, setInstalled] = useState(
       matchMedia("(display-mode: standalone)").matches ||
         !!(navigator as Navigator & { standalone?: boolean }).standalone,
@@ -21,9 +22,31 @@ export function InstallApp() {
     const done = () => setInstalled(true);
     window.addEventListener("beforeinstallprompt", show);
     window.addEventListener("appinstalled", done);
+    let registration: ServiceWorkerRegistration | undefined;
+    let worker: ServiceWorker | null = null;
+    let disposed = false;
+    const changed = () => {
+      if (worker?.state === "installed" && navigator.serviceWorker.controller)
+        setUpdate(registration?.waiting ?? worker);
+    };
+    const found = () => {
+      worker?.removeEventListener("statechange", changed);
+      worker = registration?.installing ?? null;
+      worker?.addEventListener("statechange", changed);
+    };
     if ("serviceWorker" in navigator)
-      void navigator.serviceWorker.ready.then(() => setReady(true));
+      void navigator.serviceWorker.ready.then((r) => {
+        if (disposed) return;
+        setReady(true);
+        registration = r;
+        setUpdate(r.waiting);
+        r.addEventListener("updatefound", found);
+        found();
+      });
     return () => {
+      disposed = true;
+      registration?.removeEventListener("updatefound", found);
+      worker?.removeEventListener("statechange", changed);
       window.removeEventListener("beforeinstallprompt", show);
       window.removeEventListener("appinstalled", done);
     };
@@ -43,12 +66,26 @@ export function InstallApp() {
         }}
       >
         {installed ? <Smartphone size={16} /> : <Download size={16} />}{" "}
-        {installed
-          ? "Installed on this device"
-          : prompt
-            ? "Install Tandem"
-            : "Install on your phone"}
+        {installed ? "Installed on this device" : "Install Tandem"}
       </button>
+      {update && (
+        <div role="status">
+          <p>A new version is ready. Save any open form before updating.</p>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.serviceWorker.addEventListener(
+                "controllerchange",
+                () => location.reload(),
+                { once: true },
+              );
+              update.postMessage({ type: "SKIP_WAITING" });
+            }}
+          >
+            Update Tandem
+          </button>
+        </div>
+      )}
       {help && (
         <div className="install-instructions">
           <p>
@@ -58,6 +95,10 @@ export function InstallApp() {
           <p>
             <b>Android:</b> open in Chrome, tap its menu, then Install app or
             Add to Home screen.
+          </p>
+          <p>
+            <b>Computer:</b> in Chrome or Edge, use the install icon in the
+            address bar. On supported Macs, Safari offers File → Add to Dock.
           </p>
           <p>
             {ready

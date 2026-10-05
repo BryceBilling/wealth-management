@@ -12,7 +12,7 @@ test("phone navigation, installation guidance and offline vault restart", async 
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Install on your phone", exact: true })
+    .getByRole("button", { name: "Install Tandem", exact: true })
     .click();
   await expect(page.locator(".install-instructions")).toContainText("iPhone");
   await expect(page.locator(".install-instructions")).toContainText("Android");

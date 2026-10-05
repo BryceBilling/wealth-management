@@ -2,6 +2,8 @@
 
 **Two people. One financial picture.** Private offline-first household wealth management, with a custom interlocking-arches logo in deep teal and mint. No public registration, telemetry or advertising. Optional online investment prices use Twelve Data when you connect your own API key.
 
+The primary distribution is an installable web app hosted on Railway: use the same private HTTPS address on iPhone, Android, Mac, or Windows. Choose **Install Tandem** on the welcome screen or in Settings for device-specific instructions. New releases show **Update Tandem** when ready; updates apply when you choose, so they do not interrupt an open form. Connected devices synchronize through the encrypted relay; initial household pairing still requires an encrypted backup. See [RAILWAY.md](RAILWAY.md) for restricted-access hosting.
+
 ## Run
 
 Node 24+ and npm are required.
@@ -20,7 +22,7 @@ npm run build
 npm run preview
 ```
 
-The browser caches every app asset, including SQLite WASM. Once cached it can reopen offline. Keep the same browser profile and origin. On phones, serve `dist/` over HTTPS on your private network and install through the browser's Add to Home Screen command. Do not expose the app or relay publicly. The native desktop build bundles its assets and needs no initial web connection.
+The browser caches app assets, including SQLite WASM, and can reopen offline. Financial API responses are not cached by the service worker. Keep the same browser profile and origin. Use the access-controlled Railway deployment for internet access; never publish an unprotected static copy. The optional native desktop build bundles its assets and needs no initial web connection.
 
 ## Desktop
 
